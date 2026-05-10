@@ -7,7 +7,10 @@
     "name": "PushNotifiMe",
     "email": "support@pushnotifi.me"
   },
+  "homepage": "https://pushnotifi.me",
+  "repository": "https://github.com/thetawavetechnologies/pushnotifime",
   "license": "MIT",
+  "logo": "assets/logo.svg",
   "keywords": [
     "pushnotifi",
     "human-in-the-loop",
@@ -18,5 +21,12 @@
     "notifications",
     "alerts"
   ],
-  "logo": "assets/logo.svg"
+  "category": "developer-tools",
+  "tags": [
+    "human-in-the-loop",
+    "approvals",
+    "agent-oversight",
+    "mcp",
+    "notifications"
+  ]
 }
