@@ -1,0 +1,22 @@
+{
+  "name": "pushnotifime",
+  "displayName": "PushNotifiMe",
+  "version": "0.4.0",
+  "description": "Human-in-the-loop for AI agents — on your phone. Your agent calls pushnotifi_request_ack, you tap Approve / Deny / Yes / No (or type a reply) on the PushNotifi mobile app, the agent's pushnotifi_await_ack returns your answer and the workflow continues.",
+  "author": {
+    "name": "PushNotifiMe",
+    "email": "support@pushnotifi.me"
+  },
+  "license": "MIT",
+  "keywords": [
+    "pushnotifi",
+    "human-in-the-loop",
+    "ai-agents",
+    "mcp",
+    "approvals",
+    "agent-oversight",
+    "notifications",
+    "alerts"
+  ],
+  "logo": "assets/logo.svg"
+}

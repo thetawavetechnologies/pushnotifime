@@ -1,23 +1,18 @@
 {
-  "name": "cursor-plugin-starters",
+  "name": "pushnotifime",
   "owner": {
-    "name": "Your Org",
-    "email": "plugins@example.com"
+    "name": "PushNotifiMe",
+    "email": "support@pushnotifi.me"
   },
   "metadata": {
-    "description": "Starter marketplace template for Cursor plugins",
-    "version": "0.1.0"
+    "description": "PushNotifiMe Cursor plugin marketplace entry",
+    "version": "0.4.0"
   },
   "plugins": [
     {
-      "name": "starter-simple",
-      "source": "./plugins/starter-simple",
-      "description": "Minimal plugin with rules and skills only"
-    },
-    {
-      "name": "starter-advanced",
-      "source": "./plugins/starter-advanced",
-      "description": "Full-featured plugin with rules, skills, agents, commands, hooks, and MCP"
+      "name": "pushnotifime",
+      "source": ".",
+      "description": "Human-in-the-loop for AI agents — on your phone. Your agent calls pushnotifi_request_ack, you tap Approve / Deny / Yes / No (or type a reply) on the PushNotifi mobile app, the agent's pushnotifi_await_ack returns your answer and the workflow continues. Backed by an MCP server and the PushNotifi.me API."
     }
   ]
 }

@@ -1,0 +1,38 @@
+{
+  "name": "pushnotifime-mcp",
+  "version": "0.4.0",
+  "description": "Human-in-the-loop for AI agents on your phone. MCP server exposing PushNotifi.me request_ack / await_ack approval primitives, plus send and list tools, to Cursor and any MCP-aware client.",
+  "license": "MIT",
+  "author": "PushNotifi <support@pushnotifi.me>",
+  "homepage": "https://pushnotifi.me",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pushnotifi-me/cursor-plugin.git",
+    "directory": "mcp"
+  },
+  "type": "module",
+  "main": "./dist/server.js",
+  "bin": {
+    "pushnotifime-mcp": "./dist/server.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "~5.7.2"
+  }
+}

@@ -1,0 +1,60 @@
+---
+description: When writing inbound webhook handlers, wrap the work in try/catch, send a PushNotifi alert on failure, and use a stable idempotency key.
+globs: ["**/webhooks/**", "**/webhook/**", "**/api/**/route.{ts,js,mjs}", "**/pages/api/**/*.{ts,js}", "**/handlers/**/*webhook*.{ts,js}"]
+---
+
+webhook-resilience:
+
+- Every webhook handler must catch errors at the handler boundary. Do not let an unhandled rejection or thrown error reach the platform default error page; that path produces no alert.
+- On failure, send a PushNotifi notification using the `pushnotifime` SDK (Node) or `POST /api/v1/message` (other languages). Include:
+  - `title`: short, identifying source (e.g. `Stripe webhook failure`)
+  - `message`: the error message and the relevant external id (event id, order id), no secrets
+  - `priority`: `1` for must-investigate, `0` for informational
+  - `idempotency_key`: a stable string derived from the webhook event id (e.g. `stripe:evt_…`). Do **not** derive it from `Date.now()` or a random value — that defeats deduplication on retries.
+- Reply to the webhook source with the response status the source expects (typically `200` once accepted, `4xx` for permanent rejection, `5xx` for transient). Do not return `200` on internal failure unless you have already enqueued the work for retry; otherwise the source will not retry and the failure is lost.
+- Verify the source signature *before* doing any work. On signature mismatch, send a PushNotifi alert with `priority: 1` and respond `401`. Signature failures are a security signal, not a normal-path event.
+- Do not log raw request bodies. Webhook payloads frequently contain PII or tokens.
+- For high-volume webhooks, throttle alerts: alert on the first failure of a given `idempotency_key` and suppress repeats for at least 5 minutes. The PushNotifi API enforces idempotency on the server, but client-side throttling avoids the round trip.
+- Read keys from environment variables only; see the `pushnotifi-secrets` rule.
+
+Skeleton (Node, Next.js route handler):
+
+```ts
+import { NextRequest, NextResponse } from "next/server";
+import { PushNotifiMe } from "pushnotifime";
+
+const pn = new PushNotifiMe(process.env.PUSHNOTIFI_USER_KEY!);
+
+export async function POST(req: NextRequest) {
+  const sig = req.headers.get("x-source-signature");
+  let event: { id: string; type: string };
+  try {
+    event = await verifyAndParse(req, sig);
+  } catch (err) {
+    await pn.send({
+      type: "group",
+      send_to_key: process.env.PUSHNOTIFI_GROUP_KEY!,
+      title: "Webhook signature mismatch",
+      message: (err as Error).message,
+      priority: 1,
+      idempotency_key: `sig-fail:${sig ?? "missing"}`,
+    });
+    return new NextResponse("invalid signature", { status: 401 });
+  }
+
+  try {
+    await processEvent(event);
+    return new NextResponse("ok", { status: 200 });
+  } catch (err) {
+    await pn.send({
+      type: "group",
+      send_to_key: process.env.PUSHNOTIFI_GROUP_KEY!,
+      title: "Webhook processing failed",
+      message: `${event.type} ${event.id}: ${(err as Error).message}`,
+      priority: 1,
+      idempotency_key: `wh:${event.id}`,
+    });
+    return new NextResponse("retry", { status: 500 });
+  }
+}
+```

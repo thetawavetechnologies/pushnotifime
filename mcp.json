@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "pushnotifi": {
+      "command": "node",
+      "args": ["./mcp/dist/server.js"],
+      "env": {
+        "PUSHNOTIFI_USER_KEY": "${PUSHNOTIFI_USER_KEY}",
+        "PUSHNOTIFI_GROUP_KEY": "${PUSHNOTIFI_GROUP_KEY}",
+        "PUSHNOTIFI_APPLICATION_KEY": "${PUSHNOTIFI_APPLICATION_KEY}",
+        "PUSHNOTIFI_API_BASE_URL": "${PUSHNOTIFI_API_BASE_URL}",
+        "PUSHNOTIFI_RATE_LIMIT_PER_MINUTE": "${PUSHNOTIFI_RATE_LIMIT_PER_MINUTE}"
+      }
+    }
+  }
+}
