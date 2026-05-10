@@ -25,9 +25,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 - `pushnotifi_await_ack` returns **`comment: string | null`** from `GET .../status` in addition to `response`.
 - Tool descriptions and `mcp/src/alert-templates.ts` document the two-field contract.
 
+### Fixed — MCP
+
+- `pushnotifi_request_ack` now infers `type` from the `send_to_key` prefix
+  (`u…` → `user`, `g…` → `group`) instead of hardcoding `type: "group"`,
+  which previously misrouted user-targeted asks. Invalid prefixes fail fast
+  with `INVALID_ARG`.
+
+### Changed — MCP (resilience)
+
+- `pushnotifi_await_ack` polling loop now treats `429`, `502`, `503`, `504`,
+  and network errors as transient and continues polling within the deadline
+  instead of failing the whole call. `Retry-After` on `429` is honored
+  (capped at 60 s); other 4xx errors still fail fast.
+
 ### Documentation
 
 - `docs/phase-3-backend-spec.md` updated for the separate `comment` column and wire field.
+- Removed stale references to a non-existent `ANALYSIS.md` from
+  `README.md` and `mcp/src/server.ts`; safety properties are now listed
+  inline in the README.
+- `pushnotifi_request_ack` `send_to_key` description no longer references a
+  non-existent `priority` arg.
 
 ## [0.4.0] — Phase 3b a1: pre-registered response templates
 

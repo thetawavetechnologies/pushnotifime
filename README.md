@@ -68,13 +68,15 @@ Stdio MCP server exposing PushNotifi as additional tool calls:
 - `pushnotifi_list_groups` — `GET /api/v1/groups`.
 - `pushnotifi_test` — fixed-payload smoke test.
 
-Hard safety properties (see `ANALYSIS.md` §8 for rationale):
+Hard safety properties:
 
 1. The API key is read from env at startup. **Never accepted as a tool argument.**
 2. Client-side token-bucket rate limit (default 30 sends/min, override via
    `PUSHNOTIFI_RATE_LIMIT_PER_MINUTE`).
 3. Idempotency keys auto-derived from canonical args hash when the caller omits one.
 4. Every failure is a typed `{ code, message, details }` payload — no silent swallow.
+5. `pushnotifi_await_ack` retries transient `5xx`, `429`, and network errors
+   while polling (honors `Retry-After` on 429), and fails fast on other 4xx.
 
 Build the server before first use:
 

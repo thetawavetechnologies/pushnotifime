@@ -3,7 +3,11 @@
  * PushNotifi MCP server.
  *
  * Stdio transport. Reads credentials from environment ONCE at startup.
- * No tool argument may carry an API key — see analysis.md §8 hard rules.
+ * Hard rules:
+ *   - No tool argument may carry an API key (env-only).
+ *   - Outbound sends are token-bucket rate-limited (default 30/min).
+ *   - Idempotency keys are auto-derived from a canonical args hash.
+ *   - Every failure path returns a typed `{ code, message, details }` payload.
  */
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
@@ -106,7 +110,10 @@ function buildTools(): ToolDef[] {
         title: { type: "string", maxLength: 256 },
         send_to_key: {
           type: "string",
-          description: "Defaults to PUSHNOTIFI_GROUP_KEY env. The notification is sent at priority 2 (emergency) regardless of `priority` arg, since only emergency sends are server-tracked for ack.",
+          description:
+            "Defaults to PUSHNOTIFI_GROUP_KEY env. Must start with `g` (group key) or `u` (user key); " +
+            "the send `type` is inferred from the prefix. Always sent at emergency priority " +
+            "since only emergency sends are server-tracked for ack.",
         },
         response_template: {
           type: "string",

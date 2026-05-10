@@ -52,6 +52,26 @@ export interface PushNotifiClient {
 
 const REQUEST_TIMEOUT_MS = 10_000;
 
+/**
+ * Parse RFC 7231 `Retry-After` (delta-seconds or HTTP-date) into milliseconds.
+ * Returns `null` if absent, malformed, or in the past. Caps at 1h to avoid
+ * pathological values from a misbehaving upstream.
+ */
+function parseRetryAfterMs(header: string | null): number | null {
+  if (header === null) return null;
+  const trimmed = header.trim();
+  if (trimmed.length === 0) return null;
+  const seconds = Number(trimmed);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Math.min(seconds * 1000, 3_600_000);
+  }
+  const dateMs = Date.parse(trimmed);
+  if (!Number.isFinite(dateMs)) return null;
+  const delta = dateMs - Date.now();
+  if (delta <= 0) return null;
+  return Math.min(delta, 3_600_000);
+}
+
 export function createClient(env: Env): PushNotifiClient {
   const apiRoot = `${env.apiBaseUrl}/api/v1`;
   const headers: Record<string, string> = {
@@ -99,10 +119,19 @@ export function createClient(env: Env): PushNotifiClient {
     }
 
     if (!res.ok) {
-      throw new McpToolError("API_ERROR", `PushNotifi API ${res.status} on ${method} ${path}`, {
+      const details: Record<string, unknown> = {
         status: res.status,
         body: parsed,
-      });
+      };
+      if (res.status === 429) {
+        const ra = parseRetryAfterMs(res.headers.get("retry-after"));
+        if (ra !== null) details.retry_after_ms = ra;
+      }
+      throw new McpToolError(
+        "API_ERROR",
+        `PushNotifi API ${res.status} on ${method} ${path}`,
+        details
+      );
     }
 
     return parsed as T;

@@ -21,6 +21,50 @@ import {
 } from "./alert-templates.js";
 
 const POLL_INTERVAL_MS = 5_000;
+/** Cap on Retry-After honored from server; protects against pathological values. */
+const MAX_BACKOFF_MS = 60_000;
+
+/**
+ * Map a `send_to_key` to its `type`. PushNotifi keys are namespaced by their
+ * first character: `u…` = user, `g…` = group. Anything else is invalid input
+ * and should fail fast rather than silently mis-route the send.
+ */
+function inferSendType(sendToKey: string): "user" | "group" {
+  const k = sendToKey.trim();
+  if (k.startsWith("u")) return "user";
+  if (k.startsWith("g")) return "group";
+  throw new McpToolError(
+    "INVALID_ARG",
+    `"send_to_key" must start with "u" (user key) or "g" (group key); got "${k.slice(0, 8)}…"`
+  );
+}
+
+/**
+ * Decide whether a polling-loop error is transient (keep polling) or fatal
+ * (surface to the agent). Returning `backoffMs` lets the loop honor a
+ * server-supplied `Retry-After` on 429s instead of hammering the API.
+ */
+function classifyPollError(
+  err: unknown
+): { retry: false } | { retry: true; backoffMs: number | null } {
+  if (!(err instanceof McpToolError)) return { retry: false };
+  if (err.code === "NETWORK_ERROR") return { retry: true, backoffMs: null };
+  if (err.code === "API_ERROR") {
+    const details = err.details as { status?: unknown; retry_after_ms?: unknown };
+    const status = typeof details.status === "number" ? details.status : 0;
+    if (status === 429) {
+      const ra =
+        typeof details.retry_after_ms === "number" && details.retry_after_ms > 0
+          ? Math.min(details.retry_after_ms, MAX_BACKOFF_MS)
+          : null;
+      return { retry: true, backoffMs: ra };
+    }
+    if (status === 502 || status === 503 || status === 504) {
+      return { retry: true, backoffMs: null };
+    }
+  }
+  return { retry: false };
+}
 
 interface AckResultAcked {
   acked: true;
@@ -87,10 +131,12 @@ export function buildPhase3Tools(env: Env, client: PushNotifiClient, limiter: Ra
       template = asTemplate(templateRaw);
     }
 
+    const sendType = inferSendType(sendToKey);
+
     limiter.consume();
 
     const sendBody: Parameters<PushNotifiClient["send"]>[0] = {
-      type: "group",
+      type: sendType,
       send_to_key: sendToKey,
       message,
       title,
@@ -127,8 +173,21 @@ export function buildPhase3Tools(env: Env, client: PushNotifiClient, limiter: Ra
       try {
         status = await client.getAlertStatus(correlationId);
       } catch (err) {
-        if (err instanceof McpToolError) throw err;
-        throw new McpToolError("NETWORK_ERROR", `Ack poll failed: ${asError(err).message}`);
+        const verdict = classifyPollError(err);
+        if (!verdict.retry) {
+          if (err instanceof McpToolError) throw err;
+          throw new McpToolError(
+            "NETWORK_ERROR",
+            `Ack poll failed: ${asError(err).message}`
+          );
+        }
+        const remaining = deadlineMs - Date.now();
+        if (remaining <= 0) break;
+        const backoffMs = verdict.backoffMs ?? POLL_INTERVAL_MS;
+        await new Promise((resolve) =>
+          setTimeout(resolve, Math.min(backoffMs, remaining))
+        );
+        continue;
       }
       if (status.acked === true) {
         return {
